@@ -6,6 +6,7 @@ using namespace cv;  //包含cv命名空间
 using namespace std;
 
 vector<DMatch> ransac(vector<DMatch> matches, vector<KeyPoint> queryKeyPoint, vector<KeyPoint> trainKeyPoint);
+Point2f getTransformPoint(const Point2f originalPoint,const Mat &transformMaxtri);
 
 int main() {
     //Create SIFT class pointer
@@ -43,6 +44,36 @@ int main() {
     drawMatches(img_1, keypoints_1, img_2, keypoints_2, matches, img_matches1);
     imshow("RANSC_after", img_matches1);
 
+    //获得匹配特征点，并提取最优配对
+    sort(matches.begin(),matches.end()); //特征点排序
+    //获取排在前N个的最优匹配特征点
+    vector<Point2f> imagePoints1,imagePoints2;
+    for(int i=0;i<10;i++)
+    {
+        imagePoints1.push_back(keypoints_1[matches[i].queryIdx].pt);
+        imagePoints2.push_back(keypoints_2[matches[i].trainIdx].pt);
+    }
+
+    //获取图像1到图像2的投影映射矩阵，尺寸为3*3
+    Mat homo=findHomography(imagePoints1,imagePoints2,CV_RANSAC);
+    Mat adjustMat=(Mat_<double>(3,3)<<1.0,0,img_1.cols,0,1.0,0,0,0,1.0);
+    Mat adjustHomo=adjustMat*homo;
+
+    //获取最强配对点在原始图像和矩阵变换后图像上的对应位置，用于图像拼接点的定位
+    Point2f originalLinkPoint,targetLinkPoint,basedImagePoint;
+    originalLinkPoint=keypoints_1[matches[0].queryIdx].pt;
+    targetLinkPoint=getTransformPoint(originalLinkPoint,adjustHomo);
+    basedImagePoint=keypoints_2[matches[0].trainIdx].pt;
+
+    //图像配准
+    Mat imageTransform1;
+    warpPerspective(img_1,imageTransform1,adjustMat*homo,Size(img_2.cols+img_1.cols+10,img_2.rows));
+
+    //在最强匹配点的位置处衔接，最强匹配点左侧是图1，右侧是图2，这样直接替换图像衔接不好，光线有突变
+    Mat ROIMat=img_2(Rect(Point(basedImagePoint.x,0),Point(img_2.cols,img_2.rows)));
+    ROIMat.copyTo(Mat(imageTransform1,Rect(targetLinkPoint.x,0,img_2.cols-basedImagePoint.x+1,img_2.rows)));
+
+    imshow("Complete!",imageTransform1);
     //等待任意按键按下
     waitKey(0);
 }
@@ -76,4 +107,15 @@ vector<DMatch> ransac(vector<DMatch> matches, vector<KeyPoint> queryKeyPoint, ve
     cout << "经RANSAC消除误匹配后一共：" << matches_ransac.size() << " 对匹配：" << endl;
     //返回RANSAC过滤后的点对匹配信息
     return matches_ransac;
+}
+
+//计算原始图像点位在经过矩阵变换后在目标图像上对应位置
+Point2f getTransformPoint(const Point2f originalPoint,const Mat &transformMaxtri)
+{
+    Mat originelP,targetP;
+    originelP=(Mat_<double>(3,1)<<originalPoint.x,originalPoint.y,1.0);
+    targetP=transformMaxtri*originelP;
+    float x=targetP.at<double>(0,0)/targetP.at<double>(2,0);
+    float y=targetP.at<double>(1,0)/targetP.at<double>(2,0);
+    return Point2f(x,y);
 }
