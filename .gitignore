@@ -1,0 +1,5 @@
+CMakeCache.txt
+cmake-build-debug/
+.git/
+.idea/
+
