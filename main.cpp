@@ -7,13 +7,19 @@ using namespace std;
 
 vector<DMatch> ransac(vector<DMatch> matches, vector<KeyPoint> queryKeyPoint, vector<KeyPoint> trainKeyPoint);
 Point2f getTransformPoint(const Point2f originalPoint,const Mat &transformMaxtri);
+void meshgrid(const cv::Range &xgv, const cv::Range &ygv, cv::Mat &X, cv::Mat &Y);
+void transform(Mat &SrcImage,Mat &dst);
 
 int main() {
     //Create SIFT class pointer
     Ptr<Feature2D> f2d = xfeatures2d::SIFT::create();
     //读入图片
-    Mat img_1 = imread("../3.png");
-    Mat img_2 = imread("../4.png");
+    Mat input_1 = imread("../11.jpg");
+    Mat input_2 = imread("../12.jpg");
+    Mat img_1,img_2;
+    transform(input_1,img_1);
+    transform(input_2,img_2);
+
     imshow("img_1", img_1);
     imshow("img_2", img_2);
 
@@ -118,4 +124,42 @@ Point2f getTransformPoint(const Point2f originalPoint,const Mat &transformMaxtri
     float x=targetP.at<double>(0,0)/targetP.at<double>(2,0);
     float y=targetP.at<double>(1,0)/targetP.at<double>(2,0);
     return Point2f(x,y);
+}
+
+void transform(Mat &SrcImage,Mat &dst)
+{
+    float F = 512.89;
+    float r = 512.89;
+    int row = SrcImage.rows;
+    int col = SrcImage.cols;
+
+    cv::Mat X, Y;
+    meshgrid(cv::Range(1, col), cv::Range(1, row), X, Y);
+
+    cv::Mat mapx1(row, col, CV_32FC1, cv::Scalar(0));
+    cv::Mat mapy1(row, col, CV_32FC1, cv::Scalar(0));
+
+    for( int i =  0; i < SrcImage.rows; i++)
+    {
+        for( int j = 0; j < SrcImage.cols; j++)
+        {
+            mapx1.at<float>(i, j) = F*tan(((float) j - col/2)/r);
+            mapy1.at<float>(i, j) = (((float) i - row/2)/r)*hypot(((float) j - col/2),F);  //垂直
+
+        }
+    }
+    //remap and then save the image
+    mapx1 = mapx1 + col/2;
+    mapy1 = mapy1 + row/2;
+
+    remap(SrcImage, dst, mapx1, mapy1, CV_INTER_LINEAR);
+
+}
+void meshgrid(const cv::Range &xgv, const cv::Range &ygv, cv::Mat &X, cv::Mat &Y)
+{
+    std::vector<float> t_x, t_y;
+    for (int i = xgv.start; i <= xgv.end; i++) t_x.push_back(float(i));
+    for (int j = ygv.start; j <= ygv.end; j++) t_y.push_back(float(j));
+    cv::repeat(cv::Mat(t_x).t(), t_y.size(), 1, X);
+    cv::repeat(cv::Mat(t_y), 1, t_x.size(), Y);
 }
