@@ -14,14 +14,16 @@ int main() {
     //Create SIFT class pointer
     Ptr<Feature2D> f2d = xfeatures2d::SIFT::create();
     //读入图片
-    Mat input_1 = imread("../11.jpg");
-    Mat input_2 = imread("../12.jpg");
+   // Mat input_1 = imread("../11.jpg");
+    Mat input_2 = imread("../DSC01549.jpg");
     Mat img_1,img_2;
-    transform(input_1,img_1);
+    //transform(input_1,img_1);
+    img_1 = imread("../out.jpg");
+
     transform(input_2,img_2);
 
-    imshow("img_1", img_1);
-    imshow("img_2", img_2);
+    //imshow("img_1", img_1);
+    //imshow("img_2", img_2);
 
     //Detect the keypoints
     vector<KeyPoint> keypoints_1, keypoints_2;
@@ -42,13 +44,15 @@ int main() {
     //绘制匹配出的关键点
     Mat img_matches;
     drawMatches(img_1, keypoints_1, img_2, keypoints_2, matches, img_matches);
-    imshow("RANSC_before", img_matches);
+
+    //imshow("RANSC_before", img_matches);
 
     matches = ransac(matches, keypoints_1, keypoints_2);
 
     Mat img_matches1;
     drawMatches(img_1, keypoints_1, img_2, keypoints_2, matches, img_matches1);
-    imshow("RANSC_after", img_matches1);
+
+    //imshow("RANSC_after", img_matches1);
 
     //获得匹配特征点，并提取最优配对
     sort(matches.begin(),matches.end()); //特征点排序
@@ -79,9 +83,11 @@ int main() {
     Mat ROIMat=img_2(Rect(Point(basedImagePoint.x,0),Point(img_2.cols,img_2.rows)));
     ROIMat.copyTo(Mat(imageTransform1,Rect(targetLinkPoint.x,0,img_2.cols-basedImagePoint.x+1,img_2.rows)));
 
-    imshow("Complete!",imageTransform1);
+    imwrite("../out.jpg",imageTransform1);
+    //imshow("Complete!",imageTransform1);
     //等待任意按键按下
-    waitKey(0);
+    //waitKey(0);
+    return 0;
 }
 
 //RANSAC算法实现
